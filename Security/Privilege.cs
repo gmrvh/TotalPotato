@@ -6,7 +6,6 @@ namespace TotalPotato
 {
     internal class ImpersonationToken
     {
-        // Constants that are going to be used during our procedure.
         public static uint SE_PRIVILEGE_ENABLED = 0x00000002;
         public static uint STANDARD_RIGHTS_REQUIRED = 0x000F0000;
         public static uint STANDARD_RIGHTS_READ = 0x00020000;
@@ -56,7 +55,6 @@ namespace TotalPotato
             internal UInt32 Attributes;
         }
 
-        // This also works with CharSet.Ansi as long as the calling function uses the same character set.
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct STARTUPINFO
         {
@@ -167,7 +165,6 @@ namespace TotalPotato
                                  [MarshalAs(UnmanagedType.Bool)] bool disableAllPrivileges,
                                  [MarshalAs(UnmanagedType.Struct)] ref TOKEN_PRIVILEGES newstate,
                                  uint bufferlength, IntPtr previousState, IntPtr returnlength);
-        // OpenProcessToken
         [DllImport("advapi32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool OpenProcessToken(IntPtr ProcessHandle, UInt32 DesiredAccess, out IntPtr TokenHandle);
@@ -304,7 +301,6 @@ namespace TotalPotato
                                 var lastError = Marshal.GetLastWin32Error();
                                 if (lastError == ERROR_NOT_ALL_ASSIGNED)
                                 {
-                                    //Not likley to have the privilege
                                     return false;
                                 }
                                 else if (lastError != 0)

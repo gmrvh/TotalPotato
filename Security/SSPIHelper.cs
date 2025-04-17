@@ -76,8 +76,7 @@ namespace TotalPotato
         {
             public int ulVersion;
             public int cBuffers;
-            public IntPtr pBuffers; //Point to SecBuffer
-
+            public IntPtr pBuffers;
             public SecBufferDesc(int bufferSize)
             {
                 ulVersion = (int)SecBufferType.SECBUFFER_VERSION;
@@ -141,16 +140,8 @@ namespace TotalPotato
 
         [DllImport("secur32.dll", SetLastError = true)]
         public static extern int AcquireCredentialsHandle(
-            string pszPrincipal, //SEC_CHAR*
-            string pszPackage, //SEC_CHAR* //"Kerberos","NTLM","Negotiative"
-            int fCredentialUse,
-            IntPtr PAuthenticationID,//_LUID AuthenticationID,//pvLogonID, //PLUID
-            IntPtr pAuthData,//PVOID
-            IntPtr pGetKeyFn, //SEC_GET_KEY_FN
-            IntPtr pvGetKeyArgument, //PVOID
-            CredHandle phCredential, //SecHandle //PCtxtHandle ref
-            TimeStamp ptsExpiry); //PTimeStamp //TimeStamp ref
-
+            string pszPrincipal, string pszPackage, int fCredentialUse,
+            IntPtr PAuthenticationID, IntPtr pAuthData, IntPtr pGetKeyFn, IntPtr pvGetKeyArgument, CredHandle phCredential, TimeStamp ptsExpiry);
         [DllImport("secur32.dll", SetLastError = true)]
         public static extern int AcceptSecurityContext(CredHandle phCredential, CtxHandle phContext,
                             ref SecBufferDesc pInput,
@@ -158,8 +149,7 @@ namespace TotalPotato
                             uint TargetDataRep,
                             CtxHandle phNewContext,
                             out SecBufferDesc pOutput,
-                            out uint pfContextAttr,    //managed ulong == 64 bits!!!
-                            TimeStamp ptsTimeStamp);
+                            out uint pfContextAttr, TimeStamp ptsTimeStamp);
 
         [DllImport("secur32.dll", SetLastError = true)]
         public static extern int QuerySecurityContextToken(CtxHandle phContext, out IntPtr hToken);
