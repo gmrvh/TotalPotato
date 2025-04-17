@@ -247,7 +247,7 @@ namespace SharpToken
     }
     [StructLayout(LayoutKind.Sequential)]
     public struct OBJECT_TYPE_INFORMATION
-    { // Information Class 2
+    {
         public UNICODE_STRING Name;
         public int ObjectCount;
         public int HandleCount;
@@ -735,10 +735,8 @@ namespace SharpToken
             processToken.TargetProcessId = targetProcessPid;
             processToken.TargetProcessToken = targetProcessToken;
 
-            //获取Token类型
             processToken.TokenType = GetTokenType(tokenHandle);
 
-            //检查token类型是否为主Token 如果是主Token必须调用DuplicateTokenEx获取模拟Token不然就获取不到Token类型 详情:https://docs.microsoft.com/en-us/windows/win32/api/winnt/ne-winnt-token_information_class
             if (processToken.ImpersonationLevel == TokenImpersonationLevel.None)
             {
                 IntPtr newToken;
@@ -796,10 +794,8 @@ namespace SharpToken
                 DWORD GroupCount;
             #ifdef MIDL_PASS
                 [size_is(GroupCount)] SID_AND_ATTRIBUTES Groups[*];
-            #else // MIDL_PASS
-                SID_AND_ATTRIBUTES Groups[ANYSIZE_ARRAY];
-            #endif // MIDL_PASS
-            } TOKEN_GROUPS, *PTOKEN_GROUPS;
+            #else                 SID_AND_ATTRIBUTES Groups[ANYSIZE_ARRAY];
+            #endif             } TOKEN_GROUPS, *PTOKEN_GROUPS;
              *
              */
             if (NativeMethod.GetTokenInformation(tokenHandle, TOKEN_INFORMATION_CLASS.TokenGroups, out tokenUserPtr, out ReturnLength))
@@ -970,9 +966,8 @@ namespace SharpToken
                 return true;
             }
 
-            //CreateProcessWithTokenW的TokenHandle必须有TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID权限
             if (NativeMethod.CreateProcessWithTokenW(this.TokenHandle, 0, null, commandLine, dwCreationFlags, IntPtr.Zero, null, ref startupinfo,
-                out processInformation))
+    out processInformation))
             {
                 return true;
             }
@@ -982,7 +977,6 @@ namespace SharpToken
                 newDwCreationFlags |= (uint)ProcessCreateFlags.CREATE_UNICODE_ENVIRONMENT;
                 if (NativeMethod.CreateProcessW(null, commandLine, IntPtr.Zero, IntPtr.Zero, bInheritHandles, newDwCreationFlags, IntPtr.Zero, null, ref startupinfo, out processInformation))
                 {
-                    //init PROCESS_ACCESS_TOKEN
                     uint PROCESS_ACCESS_TOKEN_SIZE = (uint)Marshal.SizeOf(typeof(PROCESS_ACCESS_TOKEN));
                     PROCESS_ACCESS_TOKEN processAccessToken = new PROCESS_ACCESS_TOKEN();
                     IntPtr tokenInfoPtr = Marshal.AllocHGlobal((int)PROCESS_ACCESS_TOKEN_SIZE);
@@ -1049,7 +1043,7 @@ namespace SharpToken
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX
-    { // Information Class 64
+    {
         public IntPtr ObjectPointer;
         public IntPtr ProcessID;
         public IntPtr HandleValue;
@@ -1099,7 +1093,6 @@ namespace SharpToken
             }
             if (status != NativeMethod.STATUS_SUCCESS)
             {
-                //Console.WriteLine("NtQuerySystemInformation调用失败 ErrCode:" + Marshal.GetLastWin32Error());
                 goto ret;
             }
             _SYSTEM_HANDLE_INFORMATION_EX handleInfo = (_SYSTEM_HANDLE_INFORMATION_EX)Marshal.PtrToStructure(handleInfoPtr, typeof(_SYSTEM_HANDLE_INFORMATION_EX));
@@ -1155,9 +1148,7 @@ namespace SharpToken
 
                 SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX handleEntryInfo = shteis[i];
                 int handleEntryPid = (int)handleEntryInfo.ProcessID.ToInt64();
-                if (targetPid > 0 && handleEntryPid == targetPid //过滤进程PID
-                    || targetPid <= 0//如果小于等于0就不过滤
-                    )
+                if (targetPid > 0 && handleEntryPid == targetPid || targetPid <= 0)
                 {
 
                     if (lastPid != handleEntryPid)
@@ -1199,7 +1190,6 @@ namespace SharpToken
                         continue;
                     }
 
-                    //GrantedAccess 0x0012019f 有可能会导致堵塞
                     if (handleEntryInfo.ObjectType != tokenType || handleEntryInfo.GrantedAccess == 0x0012019f)
                     {
                         continue;
@@ -1317,14 +1307,12 @@ namespace SharpToken
 
             PROCESS_INFORMATION processInformation = new PROCESS_INFORMATION();
 
-            //初始化安全属性
             SECURITY_ATTRIBUTES securityAttributes = new SECURITY_ATTRIBUTES();
 
             securityAttributes.nLength = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
             securityAttributes.pSecurityDescriptor = IntPtr.Zero;
             securityAttributes.bInheritHandle = true;
 
-            //初始化子进程输出
 
             if (!NativeMethod.CreatePipe(out childProcessStdOutRead, out childProcessStdOutWrite,
                     ref securityAttributes, 8196))

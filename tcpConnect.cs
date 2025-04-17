@@ -37,7 +37,6 @@ namespace TotalPotato
                         while (true)
                         {
                             strInput.Append(rdr.ReadLine());
-                            //strInput.Append("\n");
                             p.StandardInput.WriteLine(strInput);
                             strInput.Remove(0, strInput.Length);
                         }

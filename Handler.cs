@@ -7,8 +7,9 @@
         {
             potatoes = new List<IPotatoes>
                 {
-                    new GodPotato(),
-                    new SweetPotato()
+                    
+                    new SweetPotato(),
+                    new GodPotato()
                 };
         }
 

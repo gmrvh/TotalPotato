@@ -1,159 +1,6 @@
-﻿//
-// Options.cs
-//
-// Authors:
-//  Jonathan Pryor <jpryor@novell.com>, <Jonathan.Pryor@microsoft.com>
-//  Federico Di Gregorio <fog@initd.org>
-//  Rolf Bjarne Kvinge <rolf@xamarin.com>
-//
-// Copyright (C) 2008 Novell (http://www.novell.com)
-// Copyright (C) 2009 Federico Di Gregorio.
-// Copyright (C) 2012 Xamarin Inc (http://www.xamarin.com)
-// Copyright (C) 2017 Microsoft Corporation (http://www.microsoft.com)
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
+﻿
 
-// Compile With:
-//   mcs -debug+ -r:System.Core Options.cs -o:Mono.Options.dll -t:library
-//   mcs -debug+ -d:LINQ -r:System.Core Options.cs -o:Mono.Options.dll -t:library
-//
-// The LINQ version just changes the implementation of
-// OptionSet.Parse(IEnumerable<string>), and confers no semantic changes.
 
-//
-// A Getopt::Long-inspired option parsing library for C#.
-//
-// Mono.Options.OptionSet is built upon a key/value table, where the
-// key is a option format string and the value is a delegate that is 
-// invoked when the format string is matched.
-//
-// Option format strings:
-//  Regex-like BNF Grammar: 
-//    name: .+
-//    type: [=:]
-//    sep: ( [^{}]+ | '{' .+ '}' )?
-//    aliases: ( name type sep ) ( '|' name type sep )*
-// 
-// Each '|'-delimited name is an alias for the associated action.  If the
-// format string ends in a '=', it has a required value.  If the format
-// string ends in a ':', it has an optional value.  If neither '=' or ':'
-// is present, no value is supported.  `=' or `:' need only be defined on one
-// alias, but if they are provided on more than one they must be consistent.
-//
-// Each alias portion may also end with a "key/value separator", which is used
-// to split option values if the option accepts > 1 value.  If not specified,
-// it defaults to '=' and ':'.  If specified, it can be any character except
-// '{' and '}' OR the *string* between '{' and '}'.  If no separator should be
-// used (i.e. the separate values should be distinct arguments), then "{}"
-// should be used as the separator.
-//
-// Options are extracted either from the current option by looking for
-// the option name followed by an '=' or ':', or is taken from the
-// following option IFF:
-//  - The current option does not contain a '=' or a ':'
-//  - The current option requires a value (i.e. not a Option type of ':')
-//
-// The `name' used in the option format string does NOT include any leading
-// option indicator, such as '-', '--', or '/'.  All three of these are
-// permitted/required on any named option.
-//
-// Option bundling is permitted so long as:
-//   - '-' is used to start the option group
-//   - all of the bundled options are a single character
-//   - at most one of the bundled options accepts a value, and the value
-//     provided starts from the next character to the end of the string.
-//
-// This allows specifying '-a -b -c' as '-abc', and specifying '-D name=value'
-// as '-Dname=value'.
-//
-// Option processing is disabled by specifying "--".  All options after "--"
-// are returned by OptionSet.Parse() unchanged and unprocessed.
-//
-// Unprocessed options are returned from OptionSet.Parse().
-//
-// Examples:
-//  int verbose = 0;
-//  OptionSet p = new OptionSet ()
-//    .Add ("v", v => ++verbose)
-//    .Add ("name=|value=", v => Console.WriteLine (v));
-//  p.Parse (new string[]{"-v", "--v", "/v", "-name=A", "/name", "B", "extra"});
-//
-// The above would parse the argument string array, and would invoke the
-// lambda expression three times, setting `verbose' to 3 when complete.  
-// It would also print out "A" and "B" to standard output.
-// The returned array would contain the string "extra".
-//
-// C# 3.0 collection initializers are supported and encouraged:
-//  var p = new OptionSet () {
-//    { "h|?|help", v => ShowHelp () },
-//  };
-//
-// System.ComponentModel.TypeConverter is also supported, allowing the use of
-// custom data types in the callback type; TypeConverter.ConvertFromString()
-// is used to convert the value option to an instance of the specified
-// type:
-//
-//  var p = new OptionSet () {
-//    { "foo=", (Foo f) => Console.WriteLine (f.ToString ()) },
-//  };
-//
-// Random other tidbits:
-//  - Boolean options (those w/o '=' or ':' in the option format string)
-//    are explicitly enabled if they are followed with '+', and explicitly
-//    disabled if they are followed with '-':
-//      string a = null;
-//      var p = new OptionSet () {
-//        { "a", s => a = s },
-//      };
-//      p.Parse (new string[]{"-a"});   // sets v != null
-//      p.Parse (new string[]{"-a+"});  // sets v != null
-//      p.Parse (new string[]{"-a-"});  // sets v == null
-//
-
-//
-// Mono.Options.CommandSet allows easily having separate commands and
-// associated command options, allowing creation of a *suite* along the
-// lines of **git**(1), **svn**(1), etc.
-//
-// CommandSet allows intermixing plain text strings for `--help` output,
-// Option values -- as supported by OptionSet -- and Command instances,
-// which have a name, optional help text, and an optional OptionSet.
-//
-//  var suite = new CommandSet ("suite-name") {
-//    // Use strings and option values, as with OptionSet
-//    "usage: suite-name COMMAND [OPTIONS]+",
-//    { "v:", "verbosity", (int? v) => Verbosity = v.HasValue ? v.Value : Verbosity+1 },
-//    // Commands may also be specified
-//    new Command ("command-name", "command help") {
-//      Options = new OptionSet {/*...*/},
-//      Run     = args => { /*...*/},
-//    },
-//    new MyCommandSubclass (),
-//  };
-//  return suite.Run (new string[]{...});
-//
-// CommandSet provides a `help` command, and forwards `help COMMAND`
-// to the registered Command instance by invoking Command.Invoke()
-// with `--help` as an option.
-//
 
 using System.Collections;
 using System.Collections.ObjectModel;
@@ -163,7 +10,6 @@ using System.Globalization;
 using System.Reflection;
 #else
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 #endif
 using System.Text;
 using System.Text.RegularExpressions;
@@ -219,7 +65,6 @@ namespace Mono.Options
                 do
                 {
                     end = GetLineEnd(start, width, self);
-                    // endCorrection is 1 if the line end is '\n', and might be 2 if the line end is '\r\n'.
                     int endCorrection = 1;
                     if (end >= 2 && self.Substring(end - 2, 2).Equals("\r\n"))
                         endCorrection = 2;
@@ -248,14 +93,12 @@ namespace Mono.Options
             if (!eValid.HasValue || (eValid.HasValue && eValid.Value))
             {
                 curWidth = (eValid = ewidths.MoveNext()).Value ? ewidths.Current : curWidth;
-                // '.' is any character, - is for a continuation
                 const string minWidth = ".-";
                 if (curWidth < minWidth.Length)
                     throw new ArgumentOutOfRangeException("widths",
                             string.Format("Element must be >= {0}, was {1}.", minWidth.Length, curWidth));
                 return curWidth;
             }
-            // no more elements, use the last element.
             return curWidth;
         }
 
@@ -459,9 +302,7 @@ namespace Mono.Options
             this.description = description;
             this.count = maxValueCount;
             this.names = (this is OptionSet.Category)
-                // append GetHashCode() so that "duplicate" categories have distinct
-                // names, e.g. adding multiple "" categories should be valid.
-                ? new[] { prototype + this.GetHashCode() }
+                                                ? new[] { prototype + this.GetHashCode() }
                 : prototype.Split('|');
 
             if (this is OptionSet.Category || this is CommandOption)
@@ -676,7 +517,6 @@ namespace Mono.Options
             return GetArguments(reader, false);
         }
 
-        // Cribbed from mcs/driver.cs:LoadArgs(string)
         static IEnumerable<string> GetArguments(TextReader reader, bool close)
         {
             try
@@ -795,8 +635,7 @@ namespace Mono.Options
         }
 
 #if !PCL
-#pragma warning disable 618 // SecurityPermissionAttribute is obsolete
-        [SecurityPermission(SecurityAction.LinkDemand, SerializationFormatter = true)]
+#pragma warning disable 618         [SecurityPermission(SecurityAction.LinkDemand, SerializationFormatter = true)]
 #pragma warning restore 618
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
@@ -851,8 +690,6 @@ namespace Mono.Options
                 throw new ArgumentNullException("option");
             if (item.Names != null && item.Names.Length > 0)
                 return item.Names[0];
-            // This should never happen, as it's invalid for Option to be
-            // constructed w/o any names.
             throw new InvalidOperationException("Option has no names!");
         }
 
@@ -881,7 +718,6 @@ namespace Mono.Options
         {
             Option p = Items[index];
             base.RemoveItem(index);
-            // KeyedCollection.RemoveItem() handles the 0th item
             for (int i = 1; i < p.Names.Length; ++i)
             {
                 Dictionary.Remove(p.Names[i]);
@@ -901,7 +737,6 @@ namespace Mono.Options
             List<string> added = new List<string>(option.Names.Length);
             try
             {
-                // KeyedCollection.InsertItem/SetItem handle the 0th name.
                 for (int i = 1; i < option.Names.Length; ++i)
                 {
                     Dictionary.Add(option.Names[i], option);
@@ -927,11 +762,8 @@ namespace Mono.Options
         internal sealed class Category : Option
         {
 
-            // Prototype starts with '=' because this is an invalid prototype
-            // (see Option.ParsePrototype(), and thus it'll prevent Category
-            // instances from being accidentally used as normal options.
             public Category(string description)
-                : base("=:Category:= " + description, description)
+: base("=:Category:= " + description, description)
             {
             }
 
@@ -1231,10 +1063,8 @@ namespace Mono.Options
                 }
                 return true;
             }
-            // no match; is it a bool option?
             if (ParseBool(argument, n, c))
                 return true;
-            // is it a bundled option?
             if (ParseBundledValue(f, string.Concat(n + s + v), c))
                 return true;
 
@@ -1492,19 +1322,16 @@ namespace Mono.Options
 
         static string GetArgumentName(int index, int maxIndex, string description)
         {
-            var matches = Regex.Matches(description ?? "", @"(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))"); // ignore double braces 
-            string argName = "";
+            var matches = Regex.Matches(description ?? "", @"(?<=(?<!\{)\{)[^{}]*(?=\}(?!\}))"); string argName = "";
             foreach (Match match in matches)
             {
                 var parts = match.Value.Split(':');
-                // for maxIndex=1 it can be {foo} or {0:foo}
                 if (maxIndex == 1)
                 {
                     argName = parts[parts.Length - 1];
                 }
-                // look for {i:foo} if maxIndex > 1
                 if (maxIndex > 1 && parts.Length == 2 &&
-                    parts[0] == index.ToString(CultureInfo.InvariantCulture))
+    parts[0] == index.ToString(CultureInfo.InvariantCulture))
                 {
                     argName = parts[1];
                 }
@@ -1622,11 +1449,8 @@ namespace Mono.Options
         public Command Command { get; }
         public string CommandName { get; }
 
-        // Prototype starts with '=' because this is an invalid prototype
-        // (see Option.ParsePrototype(), and thus it'll prevent Category
-        // instances from being accidentally used as normal options.
         public CommandOption(Command command, string commandName = null, bool hidden = false)
-            : base("=:Command:= " + (commandName ?? command?.Name), (commandName ?? command?.Name), maxValueCount: 0, hidden: hidden)
+: base("=:Command:= " + (commandName ?? command?.Name), (commandName ?? command?.Name), maxValueCount: 0, hidden: hidden)
         {
             if (command == null)
                 throw new ArgumentNullException(nameof(command));

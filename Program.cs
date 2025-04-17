@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using System;
 
 namespace TotalPotato
 {
@@ -15,6 +14,12 @@ namespace TotalPotato
 
             [Option('p', "port", Required = false, HelpText = "Remote Port")]
             public int? Port { get; set; }
+
+            [Option('v', "verbose", Required = false, HelpText = "Enable verbose output")]
+
+            public bool Verbose { get; set; }
+
+           
         }
 
         static void Main(string[] args)
@@ -74,7 +79,6 @@ namespace TotalPotato
 
         public static void DisplayHeader()
         {
-            // ASCII art with fixed formatting
             string headerTitle = @"
  _____      _        _   ___      _        _
 /__   \___ | |_ __ _| | / _ \___ | |_ __ _| |_ ___
